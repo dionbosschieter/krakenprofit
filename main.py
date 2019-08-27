@@ -1,3 +1,4 @@
+import os
 import sys
 import krakenex
 import logging
@@ -30,14 +31,19 @@ if __name__ == '__main__':
     profit = 0
     sell_log = {}
     current_assets = {}
+    key_path = 'kraken.key'
     logger = logging.getLogger('profitlogger')
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
     if '-d' in sys.argv:
         logger.setLevel(logging.DEBUG)
 
+    if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
+        key_path = sys.argv[1]
+        logger.debug('changed keypath to "%s"', key_path)
+
     k = krakenex.API()
-    k.load_key('kraken.key')
+    k.load_key(key_path)
 
     balance = k.query_private('Balance')['result']
     orders = k.query_private('ClosedOrders')
