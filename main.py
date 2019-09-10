@@ -5,20 +5,20 @@ import logging
 import influxdb
 
 
-def write_profit_to_influx(profit):
+def write_balance_to_influx(balance):
     """
-    Writes the given profit to influx db with the current timestamp
+    Writes the given balance to influx db with the current timestamp
 
-    :param profit: the calculated profit since start
+    :param balance: the calculated profit since start
     """
     profit_json_body = [
         {
-            "measurement": "profit",
+            "measurement": "account",
             "tags": {
-                "exchange": "kraken",
+                "type": "kraken",
             },
             "fields": {
-                "value": profit
+                "value": balance
             }
         }
     ]
@@ -28,7 +28,6 @@ def write_profit_to_influx(profit):
 
 
 if __name__ == '__main__':
-    profit = 0
     sell_log = {}
     current_assets = {}
     key_path = 'kraken.key'
@@ -46,25 +45,7 @@ if __name__ == '__main__':
     k.load_key(key_path)
 
     balance = k.query_private('Balance')['result']
-    orders = k.query_private('ClosedOrders')
-    closed_orders = orders['result']['closed']
-
-    for order_id in closed_orders:
-        order = closed_orders[order_id]
-        if order['status'] == 'closed':
-            type = order['descr']['type']
-            pair = order['descr']['pair']
-            cost = float(order['cost'])
-            if type == 'sell':
-                sell_log[pair] = cost
-            elif type == 'buy':
-                if pair in sell_log:
-                    profit += sell_log[pair] - cost
-                    sell_log.pop(pair)
-                else:
-                    current_assets[pair] = cost
-
-            logger.debug('{} {} {}'.format(type, pair, cost))
+    balance_in_eur = 0
 
     for asset in balance:
         is_coin = asset[0] == 'X'
@@ -72,6 +53,7 @@ if __name__ == '__main__':
         count = float(balance[asset])
 
         if is_coin == False:
+            balance_in_eur += count
             continue
 
         query_pair = asset[1:] + 'EUR'
@@ -81,12 +63,8 @@ if __name__ == '__main__':
         last_price = float(ticker_data['result'][result_pair]['a'][0])
 
         asset_worth = (last_price * count)
-        diff = asset_worth - current_assets[query_pair]
-        logger.debug('profit %s', profit)
-        logger.debug('diff %s', diff)
-        profit += diff
+        balance_in_eur += asset_worth
+        logger.debug('asset "%s" worth "%s"', asset, asset_worth)
 
-    logger.debug('profit %s', profit)
-    logger.debug('assets %s', current_assets)
-    logger.debug('balance %s', balance)
-    write_profit_to_influx(profit)
+    logger.debug('balance %s', balance_in_eur)
+    write_balance_to_influx(balance_in_eur)
