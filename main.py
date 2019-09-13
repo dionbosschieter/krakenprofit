@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
         count = float(balance[asset])
 
-        if is_coin == False:
+        if not is_coin:
             balance_in_eur += count
             continue
 
